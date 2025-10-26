@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PEGAWAI
+  DIVISI_SDM
+  ADMIN
+}
+
+enum StatusPerdin {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  nama      String
+  role      Role     @default(PEGAWAI)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  perdinSubmissions Perdin[] @relation("PegawaiPerdin")
+  perdinApprovals   Perdin[] @relation("SDMApproval")
+
+  @@map("users")
+}
+
+model Kota {
+  id          String  @id @default(cuid())
+  namaKota    String @unique
+  latitude    Float
+  longitude   Float
+  provinsi    String
+  pulau       String
+  luarNegeri  Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  perdinAsal   Perdin[] @relation("KotaAsal")
+  perdinTujuan Perdin[] @relation("KotaTujuan")
+
+  @@map("kota")
+}
+
+model Perdin {
+  id              String        @id @default(cuid())
+  pegawaiId       String
+  pegawai         User          @relation("PegawaiPerdin", fields: [pegawaiId], references: [id])
+  
+  keterangan      String        @db.Text
+  tanggalBerangkat DateTime
+  tanggalPulang   DateTime
+  durasiHari      Int
+  
+  kotaAsalId      String
+  kotaAsal        Kota          @relation("KotaAsal", fields: [kotaAsalId], references: [id])
+  
+  kotaTujuanId    String
+  kotaTujuan      Kota          @relation("KotaTujuan", fields: [kotaTujuanId], references: [id])
+  
+  jarakKm         Float
+  uangSakuPerHari Decimal       @db.Decimal(12, 2)
+  totalUangPerdin Decimal       @db.Decimal(12, 2)
+  currencyCode    String        @default("IDR") 
+  
+  status          StatusPerdin  @default(PENDING)
+  approvedById    String?
+  approvedBy      User?         @relation("SDMApproval", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?       @db.Text
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@map("perdin")
+}
